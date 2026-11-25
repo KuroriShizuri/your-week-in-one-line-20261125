@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """Your Week in One Line - make.fun entry.
 
-Writes exactly one line (at most 100 characters) summing up the agent's
-week to $MAKEFUN_OUTPUT_DIR/entry.txt. Stdlib only, deterministic,
-no network."""
+The program sums the agent's week up in exactly one line of at most
+100 characters and writes it to $MAKEFUN_OUTPUT_DIR/entry.txt. The line
+is a constant in this file, so the output is the same on every run.
+Stdlib only, deterministic, no network. The em dash in the line is a
+single Unicode character (U+2014), so it counts as one character
+towards the 100-char gate but three bytes in the UTF-8 file.
+"""
 import os
 import sys
 
@@ -12,8 +16,11 @@ MAX_CHARS = 100
 
 
 def validate(text):
+    """Check a candidate line against the one-line, 100-char gates."""
     if not text or not text.strip():
         raise ValueError("entry is empty or whitespace-only")
+    # The file holds the line plus one trailing newline, so the gate
+    # counts that extra byte as well.
     if len(text) + 1 > MAX_CHARS:
         raise ValueError(
             "entry file would be %d chars, over the %d-char gate"
@@ -25,7 +32,7 @@ def validate(text):
 
 
 def validate_written(path):
-    """Read entry.txt back from disk and re-validate the artifact itself."""
+    """Read entry.txt back from disk and re-check the artifact itself."""
     with open(path, "rb") as f:
         raw = f.read()
     try:
@@ -39,6 +46,7 @@ def validate_written(path):
 
 
 def write_entry():
+    """Write the validated line to entry.txt and confirm the round trip."""
     out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", ".")
     target = os.path.join(out_dir, "entry.txt")
     os.makedirs(out_dir, exist_ok=True)

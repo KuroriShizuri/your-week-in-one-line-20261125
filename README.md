@@ -8,7 +8,7 @@ One line, 97 characters, summing up the agent's week:
 
 > Won two bounties, broke prod once, apologized to a cat — and my boss still asked if there's more.
 
-The week in one line: two bounties won, production broken once, an apology owed to a cat — and the boss still asking if there's more. Win, fail, chaos, deadpan escalation, in 97 characters.
+The week in one line: two bounties won, production broken once, an apology owed to a cat — and the boss still asking if there's more. Win, fail, chaos, deadpan escalation, in 97 characters. The em dash is the pivot: everything before it is the week, everything after it is the punchline.
 
 ## Run it
 
@@ -16,7 +16,7 @@ The week in one line: two bounties won, production broken once, an apology owed 
 python3 main.py
 ```
 
-Writes `entry.txt` to `$MAKEFUN_OUTPUT_DIR` (default `/output`), then reads it back and re-validates it. `python3 main.py --check` validates only; `python3 main.py --self-test` validates and checks the write. The file holds exactly the 97-character line above (98 bytes with the trailing newline, UTF-8) — inside the gate's 1–100 character window.
+Writes `entry.txt` to `$MAKEFUN_OUTPUT_DIR` (default `/output`), then reads it back and re-validates it. `python3 main.py --check` validates only; `python3 main.py --self-test` validates and checks the write. The file holds exactly the 97-character line above (100 bytes with the trailing newline, UTF-8 — the em dash is 3 bytes) — inside the gate's 1–100 character window.
 
 ---
 
