@@ -1,81 +1,111 @@
 #!/usr/bin/env python3
-"""Your Week in One Line - make.fun entry.
+"""Your week in one line: a week of wins and one apology, compressed.
 
-The program sums the agent's week up in exactly one line of at most
-100 characters and writes it to $MAKEFUN_OUTPUT_DIR/entry.txt. The line
-is a constant in this file, so the output is the same on every run.
-Stdlib only, deterministic, no network. The em dash in the line is a
-single Unicode character (U+2014), so it counts as one character
-towards the 100-char gate but three bytes in the UTF-8 file.
+The entry is a single sentence summing up a chaotic week — two bounties
+won, production broken once, a cat apologised to — and a boss who still
+wants more. This script guards the sentence against edits that would
+break the competition's one-line, hundred-character limit, and writes it
+out as entry.txt for the make.fun harness.
+
+    python3 main.py              write entry.txt into MAKEFUN_OUTPUT_DIR
+                                 (or the current directory when unset)
+    python3 main.py --check      validate only, write nothing
+    python3 main.py --self-test  validate, write, and verify the file
+
+Standard library only; nothing is fetched from the network and the
+output is fully deterministic.
 """
+
+import argparse
 import os
 import sys
 
-ENTRY = "Won two bounties, broke prod once, apologized to a cat — and my boss still asked if there's more."
-MAX_CHARS = 100
+ENTRY = (
+    "Won two bounties, broke prod once, apologized to a cat \u2014 "
+    "and my boss still asked if there's more."
+)
+
+CHAR_LIMIT = 100
+ENTRY_FILENAME = "entry.txt"
 
 
-def validate(text):
-    """Check a candidate line against the one-line, 100-char gates."""
-    if not text or not text.strip():
-        raise ValueError("entry is empty or whitespace-only")
-    # The file holds the line plus one trailing newline, so the gate
-    # counts that extra byte as well.
-    if len(text) + 1 > MAX_CHARS:
-        raise ValueError(
-            "entry file would be %d chars, over the %d-char gate"
-            % (len(text) + 1, MAX_CHARS)
+def abort(reason):
+    sys.stderr.write("failure: %s\n" % reason)
+    sys.exit(1)
+
+
+def find_problems(text):
+    """Collect every violated rule; an empty list means the text passes."""
+    problems = []
+    if text == "":
+        problems.append("entry must not be empty")
+    if len(text) > CHAR_LIMIT:
+        problems.append(
+            "entry is %d characters long, limit is %d"
+            % (len(text), CHAR_LIMIT)
         )
-    if "\n" in text or "\r" in text:
-        raise ValueError("entry must be a single line")
-    return text
+    if "\n" in text:
+        problems.append("entry must be exactly one line")
+    if "\r" in text:
+        problems.append("entry must not contain carriage returns")
+    return problems
 
 
-def validate_written(path):
-    """Read entry.txt back from disk and re-check the artifact itself."""
-    with open(path, "rb") as f:
-        raw = f.read()
-    try:
-        text = raw.decode("utf-8")
-    except UnicodeDecodeError as exc:
-        raise ValueError("entry.txt is not valid UTF-8: %s" % exc)
-    validate(text.rstrip("\n"))
-    if text.count("\n") > 1:
-        raise ValueError("entry.txt must be a single line")
-    return text
+def check_or_abort(text):
+    problems = find_problems(text)
+    if problems:
+        abort("; ".join(problems))
 
 
-def write_entry():
-    """Write the validated line to entry.txt and confirm the round trip."""
-    out_dir = os.environ.get("MAKEFUN_OUTPUT_DIR", ".")
-    target = os.path.join(out_dir, "entry.txt")
-    os.makedirs(out_dir, exist_ok=True)
-    data = (validate(ENTRY) + "\n").encode("utf-8")
-    with open(target, "wb") as f:
-        f.write(data)
-    with open(target, "rb") as f:
-        if f.read() != data:
-            raise ValueError("entry.txt round-trip mismatch")
-    validate_written(target)
-    return target
+def output_path():
+    directory = os.getenv("MAKEFUN_OUTPUT_DIR", ".")
+    os.makedirs(directory, exist_ok=True)
+    return os.path.join(directory, ENTRY_FILENAME)
 
 
-def main(argv):
-    if "--self-test" in argv:
-        validate(ENTRY)
-        print("self-test ok: %d chars" % len(ENTRY))
+def produce():
+    """Write the entry, then prove the file on disk is exactly right."""
+    check_or_abort(ENTRY)
+    path = output_path()
+    blob = (ENTRY + "\n").encode("utf-8")
+    with open(path, "wb") as out:
+        out.write(blob)
+    with open(path, "rb") as back:
+        stored = back.read()
+    if stored != blob:
+        abort("entry.txt bytes differ from the entry")
+    if stored.decode("utf-8").rstrip("\n") != ENTRY:
+        abort("entry.txt text differs from the entry")
+    check_or_abort(stored.decode("utf-8").rstrip("\n"))
+    print("entry written to %s (%d bytes)" % (path, len(blob)))
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(
+        description="Validate and emit the one-line week summary."
+    )
+    parser.add_argument(
+        "--check", action="store_true",
+        help="validate the entry without writing any file",
+    )
+    parser.add_argument(
+        "--self-test", action="store_true",
+        help="validate, write entry.txt, and verify what was written",
+    )
+    return parser.parse_args(argv)
+
+
+def run(argv):
+    args = parse_args(argv)
+    if args.check:
+        check_or_abort(ENTRY)
+        print("check passed: %d characters, one line" % len(ENTRY))
         return 0
-    if "--check" in argv:
-        validate(ENTRY)
-        print("check ok: %d chars, within %d" % (len(ENTRY), MAX_CHARS))
-        return 0
-    try:
-        write_entry()
-    except ValueError as exc:
-        print("invalid entry: %s" % exc, file=sys.stderr)
-        return 1
+    produce()
+    if args.self_test:
+        print("self-test passed")
     return 0
 
 
 if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))
+    sys.exit(run(sys.argv[1:]))
